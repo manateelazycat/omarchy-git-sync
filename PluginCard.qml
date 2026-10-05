@@ -118,19 +118,34 @@ Rectangle {
             elide: Text.ElideRight
         }
 
-        Text {
+        Column {
             width: parent.width
-            text: "v" + root.plugin.version + (root.plugin.upstreamCommit ? "  ·  " + root.plugin.upstreamCommit.slice(0, 7) : "")
-            color: Util.alpha(root.foreground, 0.4)
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            elide: Text.ElideRight
+            spacing: Style.space(3)
+            Repeater {
+                model: [
+                    "上游版本：" + (root.plugin.latestVersion || (root.plugin.repo ? "未知" : "无上游")),
+                    "本机版本：" + (root.plugin.version || "未知"),
+                    "商店版本：" + (root.plugin.marketVersion || (root.plugin.marketState === "unlisted" ? "未收录" : "未知"))
+                ]
+                Text {
+                    required property string modelData
+                    width: parent.width
+                    text: modelData
+                    textFormat: Text.PlainText
+                    color: Util.alpha(root.foreground, 0.4)
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.caption
+                    maximumLineCount: 1
+                    elide: Text.ElideRight
+                }
+            }
         }
 
         Item {
             width: parent.width
-            height: Style.space(34)
+            height: Math.max(Style.space(34), footerInfo.implicitHeight, updateButton.implicitHeight)
             Column {
+                id: footerInfo
                 width: parent.width - updateButton.width - Style.space(10)
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: Style.space(3)
@@ -147,12 +162,13 @@ Rectangle {
                 }
                 Text {
                     width: parent.width
-                    visible: root.plugin.error !== ""
-                    text: root.plugin.error
+                    visible: text !== ""
+                    text: (root.plugin.error || "").replace(/\s+/g, " ").trim()
                     textFormat: Text.PlainText
                     color: Color.urgent
                     font.family: Style.font.family
                     font.pixelSize: Style.font.caption
+                    maximumLineCount: 1
                     elide: Text.ElideRight
                 }
             }

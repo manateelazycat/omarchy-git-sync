@@ -2,6 +2,8 @@
 
 简体中文 | [English](README.md)
 
+![Omarchy Git Sync 预览](preview.png)
+
 简洁的 Omarchy 插件更新面板，从 Git 上游更新插件，并对照官方插件市场版本。
 
 ## 功能

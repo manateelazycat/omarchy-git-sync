@@ -222,7 +222,7 @@ ShellUi.Panel {
                 model: sync.model
                 readonly property int columns: Math.max(1, Math.min(3, Math.floor(width / Style.space(295))))
                 cellWidth: width / columns
-                cellHeight: Style.space(224)
+                cellHeight: Style.space(244)
                 boundsBehavior: Flickable.StopAtBounds
                 keyNavigationEnabled: true
                 focus: visible

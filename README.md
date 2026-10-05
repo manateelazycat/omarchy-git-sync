@@ -2,6 +2,8 @@
 
 English | [简体中文](README.zh-CN.md)
 
+![Omarchy Git Sync preview](preview.png)
+
 A compact Omarchy panel for updating plugins from Git and comparing installed versions with the official plugin marketplace.
 
 ## Features
