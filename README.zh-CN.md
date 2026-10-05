@@ -38,6 +38,14 @@ omarchy-shell shell summon andy.git-sync
 - 打开窗口时，距离上次检查超过五分钟会自动检查。
 - “重试”只检查当前插件并刷新卡片，不安装文件、不重载 Shell。
 
+## 卸载
+
+```sh
+omarchy plugin remove andy.git-sync
+```
+
+状态和备份保留在 `~/.local/state/omarchy-git-sync/`。
+
 ## 版本与来源
 
 - 是否有更新看 Git 上游；“市场一致”对照[官方插件市场](https://github.com/omacom/omarchy-plugin-marketplace/blob/main/registry.json)的版本。

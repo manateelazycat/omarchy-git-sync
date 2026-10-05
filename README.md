@@ -38,6 +38,14 @@ omarchy-shell shell summon andy.git-sync
 - Opening the panel checks automatically if the last check was over five minutes ago.
 - Retry only checks the selected plugin and refreshes its card. It does not install files or reload Shell.
 
+## Uninstall
+
+```sh
+omarchy plugin remove andy.git-sync
+```
+
+State and backups are kept in `~/.local/state/omarchy-git-sync/`.
+
 ## Versions and sources
 
 - Updates follow Git upstream. Marketplace match compares the installed version with the [official plugin marketplace](https://github.com/omacom/omarchy-plugin-marketplace/blob/main/registry.json).
