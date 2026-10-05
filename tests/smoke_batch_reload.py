@@ -21,6 +21,16 @@ def main():
     fixture = UpdatesTest()
     fixture.setUp()
     shell = None
+    monitors = json.loads(subprocess.check_output(["hyprctl", "monitors", "-j"]))
+    original_focus = next((m["name"] for m in monitors if m.get("focused")), "")
+
+    def focus_monitor(name):
+        subprocess.run(["hyprctl", "eval", "hl.dispatch(hl.dsp.focus({monitor=" + json.dumps(name) + "}))"],
+                       capture_output=True, check=True, timeout=3)
+        focused = next(m["name"] for m in json.loads(subprocess.check_output(["hyprctl", "monitors", "-j"])) if m.get("focused"))
+        if focused != name:
+            raise RuntimeError("Could not focus monitor " + name)
+
     try:
         installed = {}
         for plugin_id in ("test.alpha", "test.beta", "test.broken"):
@@ -91,6 +101,7 @@ ShellRoot {
         function count(): string { return String(root.reloadCount) }
         function reload(): string { root.reload("explicit"); return "ok" }
         function open(): void { panel.item.open() }
+        function rememberForUpdate(): void { panel.item.sync.beforeUpdate() }
         function panelState(): string {
             var p = panel.item
             var w = p ? result.findChild(p, "gitSyncWindow") : null
@@ -132,13 +143,47 @@ ShellRoot {
             def panel_state():
                 return json.loads(ipc("panelState") or "{}")
             until(lambda: "open" in panel_state() and not panel_state()["busy"], "Panel did not load")
+            original_screen = panel_state()["screen"]
+            focus_monitor(original_screen)
             ipc("open")
             until(lambda: panel_state().get("mapped"), "Panel did not open")
-            original_screen = panel_state()["screen"]
+
+            def native_window():
+                clients = json.loads(subprocess.check_output(["hyprctl", "clients", "-j"]))
+                return next((w for w in clients if w.get("pid") == shell.pid and w.get("title") == "Git Sync"), None)
+
             def restored():
                 state = panel_state()
-                return state.get("open") and state.get("mapped") and state.get("screen") == original_screen
+                window = native_window()
+                monitor = next((m for m in monitors if window and m["id"] == window.get("monitor")), None)
+                if not state.get("open") or not state.get("mapped") or not monitor or monitor["name"] != original_screen:
+                    return False
+                width, height = monitor["width"] / monitor["scale"], monitor["height"] / monitor["scale"]
+                if monitor["transform"] % 2:
+                    width, height = height, width
+                expected = [monitor["x"] + (width - window["size"][0]) / 2,
+                            monitor["y"] + (height - window["size"][1]) / 2]
+                return window["floating"] and all(abs(a - b) <= 1 for a, b in zip(window["at"], expected))
+
+            until(restored, "Initial panel opened on the wrong monitor")
             window_state = Path(os.environ["OMARCHY_GIT_SYNC_STATE_DIR"]) / "window.json"
+            other_screen = next((m["name"] for m in monitors if m["name"] != original_screen), "")
+            if other_screen:
+                def move_panel(screen):
+                    selector = json.dumps("address:" + native_window()["address"])
+                    code = "local target=hl.get_active_workspace(" + json.dumps(screen) + "); " \
+                        + "hl.dispatch(hl.dsp.window.move({workspace=target,window=" + selector + ",follow=false})); " \
+                        + "hl.dispatch(hl.dsp.window.center({window=" + selector + "}))"
+                    subprocess.run(["hyprctl", "eval", code], capture_output=True, check=True, timeout=3)
+                move_panel(other_screen)
+                until(lambda: json.loads(window_state.read_text())["screen"] == other_screen,
+                      "Moving the window did not save its actual monitor")
+                ipc("rememberForUpdate")
+                if json.loads(window_state.read_text())["screen"] != other_screen:
+                    raise RuntimeError("Update saved the bar monitor instead of the actual window monitor")
+                move_panel(original_screen)
+                until(lambda: restored() and json.loads(window_state.read_text())["screen"] == original_screen,
+                      "Original monitor was not saved after moving back")
             before = watcher_pids(fixture.plugins)
             manager = Manager()
             manager.update(["all"])
@@ -168,9 +213,15 @@ ShellRoot {
             if ipc("count") != "3":
                 raise RuntimeError("Single update did not reload exactly once: " + log.read_text())
             until(restored, "Single update did not restore the open panel")
-            # A whole Shell restart must also restore on the original monitor.
+            # Move focus away before both QML reload and a whole Shell restart.
+            if other_screen:
+                focus_monitor(other_screen)
+                ipc("reload")
+                until(restored, "Plugin reload followed the focused monitor")
             shell.terminate()
             shell.wait(timeout=5)
+            if other_screen:
+                focus_monitor(other_screen)
             shell = subprocess.Popen(["quickshell", "-n", "-p", str(config), "--no-color"],
                                      env=env, stdout=output, stderr=subprocess.STDOUT)
             until(restored, "Shell restart did not restore the open panel")
@@ -189,12 +240,14 @@ ShellRoot {
             if panel_state()["open"] or panel_state()["mapped"]:
                 raise RuntimeError("Reload reopened an explicitly closed panel")
             print("BATCH_RELOAD_PASS: batch=1, single=1, partial failure preserved, watcher restored; "
-                  "panel restored after updates and Shell restart, explicit close stays closed")
+                  "actual monitor and center restored after switching focus; moved window saved before update; explicit close stays closed")
         return 0
     finally:
         if shell and shell.poll() is None:
             shell.terminate()
             shell.wait(timeout=5)
+        if original_focus:
+            focus_monitor(original_focus)
         fixture.doCleanups()
 
 

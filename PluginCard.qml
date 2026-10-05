@@ -8,6 +8,7 @@ Rectangle {
     property bool animationsActive: true
     property bool selected: false
     property bool successFlash: false
+    signal checkRequested(string pluginId)
     signal updateRequested(string pluginId)
     signal detailsRequested(string pluginId)
 
@@ -163,16 +164,19 @@ Rectangle {
             }
             ActionButton {
                 id: updateButton
+                objectName: "gitSyncCardAction-" + root.plugin.id
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.plugin.status === "updating" ? "安装中" : root.plugin.status === "preparing" ? "准备中"
                     : root.plugin.status === "prepared" ? "等待安装" : root.plugin.status === "checking" ? "检查中"
                     : root.retryable ? "重试" : root.plugin.canUpdate ? (root.plugin.symlink ? "独立安装" : root.plugin.status === "sync-needed" ? "同步" : "更新") : "详情"
                 primary: root.plugin.canUpdate || root.plugin.status === "updating"
-                busy: root.working && root.animationsActive
+                busy: root.working && root.plugin.status !== "checking" && root.animationsActive
                 enabled: !root.working && (!root.globalBusy || (!root.plugin.canUpdate && !root.retryable))
+                tooltip: root.retryable ? "重新检查此插件" : ""
                 onClicked: {
-                    if (root.plugin.canUpdate || root.retryable) root.updateRequested(root.plugin.id)
+                    if (root.retryable) root.checkRequested(root.plugin.id)
+                    else if (root.plugin.canUpdate) root.updateRequested(root.plugin.id)
                     else root.detailsRequested(root.plugin.id)
                 }
             }

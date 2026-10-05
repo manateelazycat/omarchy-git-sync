@@ -9,6 +9,7 @@ Item {
     visible: false
     property string path: ""
     property string screenName: ""
+    property string windowScreenName: screenName
     property var saved: null
     property bool interacted: false
     property bool restored: false
@@ -22,9 +23,9 @@ Item {
             root.restoreRequested()
         }
     }
-    function remember(open) {
+    function remember(open, screen) {
         interacted = true
-        saved = {open: open, session: session, screen: screenName}
+        saved = {open: open, session: session, screen: screen || windowScreenName || screenName}
         stateFile.setText(JSON.stringify(saved))
     }
     onScreenNameChanged: Qt.callLater(restore)

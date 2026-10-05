@@ -12,6 +12,7 @@ Item {
     property int revision: -1
     property var signatures: ({})
     property alias model: rows
+    signal beforeUpdate()
     readonly property bool busy: pending || snapshot.busy === true
     readonly property int updates: (snapshot.plugins || []).filter(function(p) { return p.canUpdate === true }).length
     readonly property string statePath: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/omarchy-git-sync/state.json"
@@ -57,9 +58,18 @@ Item {
         pendingTimer.restart()
     }
 
-    function check() { root.launch("check", []) }
-    function update(id) { root.launch("update", [id]) }
-    function updateAll() { if (root.updates > 0) root.launch("update", ["all"]) }
+    function check(id) { root.launch("check", id ? [id] : []) }
+    function update(id) {
+        if (root.busy) return
+        root.beforeUpdate()
+        root.launch("update", [id])
+    }
+    function updateAll() {
+        if (!root.busy && root.updates > 0) {
+            root.beforeUpdate()
+            root.launch("update", ["all"])
+        }
+    }
     function onOpen() {
         stateFile.reload()
         autoCheckTimer.restart()

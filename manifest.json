@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "andy.git-sync",
   "name": "Git Sync",
-  "version": "1.0.4",
+  "version": "1.0.9",
   "author": "Andy",
   "license": "GPL-3.0-only",
   "description": "从 Git 上游更新 Omarchy 插件，查看最新提交并对照官方插件市场版本。",
