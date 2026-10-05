@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "andy.git-sync",
+  "name": "Git Sync",
+  "version": "1.0.4",
+  "author": "Andy",
+  "license": "GPL-3.0-only",
+  "description": "从 Git 上游更新 Omarchy 插件，查看最新提交并对照官方插件市场版本。",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "BarWidget.qml" },
+  "barWidget": {
+    "displayName": "Git Sync",
+    "description": "插件 Git 更新面板",
+    "category": "System",
+    "defaultSection": "right",
+    "allowMultiple": false
+  }
+}
