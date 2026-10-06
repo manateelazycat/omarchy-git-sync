@@ -53,6 +53,7 @@ State and backups are kept in `~/.local/state/omarchy-git-sync/`.
 - Development symlinks can become independent installations. Your development directory stays intact.
 - Updates back up the original plugin, replace Git-managed files and records, and preserve extra configuration files. Local edits to Git-managed files are overwritten; unpushed or diverged commits need to be resolved first.
 - Built-in plugins and local plugins without a Git source are not updated here.
+- Repository URLs must not contain access tokens, passwords, HTTP usernames, or query/fragment parameters. Use SSH keys or a Git credential helper that works without interactive prompts. Checks and updates pause for affected plugins until their remote is corrected. Git URL rewrites are checked too. Old credential-bearing check caches and state URLs are removed; installed repositories and user authentication settings are left intact.
 
 ## Data and commands
 

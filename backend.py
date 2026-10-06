@@ -23,6 +23,7 @@ import tempfile
 import threading
 import time
 import urllib.request
+import urllib.parse
 
 # Importing our helper must not create files in Omarchy's watched plugin tree.
 sys.dont_write_bytecode = True
@@ -36,6 +37,39 @@ SHA_RE = re.compile(r"^[0-9a-f]{40,64}$")
 
 class SyncError(Exception):
     pass
+
+
+REPO_AUTH_ERROR = "仓库地址含有凭据，请改用 SSH 密钥或 Git credential helper 后重试"
+
+
+def repo_has_credentials(url):
+    if not isinstance(url, str) or "://" not in url:
+        return False  # Local paths and Git's user@host:path SSH syntax.
+    try:
+        parsed = urllib.parse.urlsplit(url)
+        # SSH usernames are normal; passwords and HTTP userinfo are not.
+        return (parsed.password is not None
+                or ("@" in parsed.netloc and parsed.scheme.lower() not in ("ssh", "git+ssh", "ssh+git"))
+                or bool(parsed.query) or bool(parsed.fragment))
+    except ValueError:
+        return True
+
+
+def validate_repo(url):
+    if repo_has_credentials(url):
+        raise SyncError(REPO_AUTH_ERROR)
+    if not isinstance(url, str) or not url or url.startswith("-") or any(c in url for c in "\r\n\0"):
+        raise SyncError("无效的 Git 仓库地址")
+    return url
+
+
+def scrub_repo_rows(data):
+    changed = False
+    for row in data.get("plugins", []):
+        if repo_has_credentials(row.get("repo", "")):
+            row.update(repo="", error=REPO_AUTH_ERROR, status="error", canUpdate=False)
+            changed = True
+    return changed
 
 
 def read_json(path, fallback=None):
@@ -97,6 +131,17 @@ def run(args, timeout=75, binary=False):
 
 
 def git(path, *args, bare=False, **kwargs):
+    command_index = 2 if args and args[0] == "--work-tree" else 0
+    command = args[command_index:]
+    if command and command[0] == "remote" and len(command) >= 4 and command[1] in ("add", "set-url"):
+        validate_repo(command[-1])
+    if command and command[0] in ("fetch", "ls-remote") and "--get-url" not in command:
+        # Resolve insteadOf rewrites too, before Git starts its transport helper.
+        # These callers use boolean or --option=value flags before the source.
+        source = next((arg for arg in command[1:] if not arg.startswith("-")), "origin")
+        validate_repo(source)
+        url = git(path, *args[:command_index], "ls-remote", "--get-url", source, bare=bare)
+        validate_repo(url)
     prefix = ["git", "-c", "core.hooksPath=/dev/null", "-c", "protocol.ext.allow=never", "-c", "gc.auto=0"]
     prefix += ["--git-dir", str(path)] if bare else ["-C", str(path)]
     return run(prefix + list(args), **kwargs)
@@ -170,6 +215,7 @@ def market_entries(data):
                 continue
             result[plugin_id] = {
                 "repo": source.get("repo", ""),
+                "repoAuthBlocked": source.get("repoAuthBlocked", False),
                 "marketCommit": source.get("listingValidatedCommit", ""),
                 "marketVersion": entry.get("version", ""),
                 "manifestPath": manifest_path,
@@ -192,6 +238,7 @@ class Manager:
         self.state.setdefault("plugins", [])
         self.state.setdefault("checkedAt", 0)
         self.state.setdefault("revision", 0)
+        self.sensitive_state = scrub_repo_rows(self.state)
         self.mutex = threading.RLock()
         self.market = {}
         self.journal_path = self.state_dir / "update-journal.json"
@@ -205,11 +252,38 @@ class Manager:
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
                 raise SyncError("已有任务正在运行")
+            self.cleanup_credentials()
             self.recover_update()
             yield
 
+    def cleanup_credentials(self):
+        # Only our disposable caches are removed; installed repositories and
+        # user authentication configuration are never modified.
+        for repo in (self.cache_dir / "repos").glob("*.git"):
+            if repo.is_symlink() or not repo.is_dir():
+                continue
+            try:
+                urls = git(repo, "config", "--get-regexp", r"^remote\..*\.url$", bare=True)
+            except SyncError:
+                continue  # A newly initialized cache may not have a remote yet.
+            if any(repo_has_credentials(line.partition(" ")[2]) for line in urls.splitlines()):
+                if cache_in_use(repo):
+                    raise SyncError("含凭据的 Git 检查缓存仍有任务运行，请稍后重试")
+                shutil.rmtree(repo)
+        market_path = self.cache_dir / "market.json"
+        market = read_json(market_path, {}) or {}
+        if any(repo_has_credentials(source.get("repo", "")) for source in market.get("sources", [])):
+            market_path.unlink(missing_ok=True)
+        if self.sensitive_state:
+            self.save()
+            self.sensitive_state = False
+        journal = read_json(self.journal_path, {}) or {}
+        if scrub_repo_rows({"plugins": [item.get("row", {}) for item in journal.get("items", [])]}):
+            atomic_json(self.journal_path, journal)
+
     def save(self):
         with self.mutex:
+            scrub_repo_rows(self.state)
             # Publish live check results without moving cards until the check finishes.
             if not (self.state.get("busy") and self.state.get("action") == "check"):
                 rank = {"available": 0, "sync-needed": 0, "updating": 0, "preparing": 0, "prepared": 0,
@@ -236,6 +310,10 @@ class Manager:
                 fresh = json.loads(payload)
                 if not isinstance(fresh, dict) or not isinstance(fresh.get("sources"), list):
                     raise SyncError("市场目录格式无效")
+                for source in fresh["sources"]:
+                    if repo_has_credentials(source.get("repo", "")):
+                        source["repo"] = ""
+                        source["repoAuthBlocked"] = True
                 atomic_json(cache_path, fresh)
                 data = fresh
             except (OSError, ValueError, SyncError) as exc:
@@ -271,6 +349,7 @@ class Manager:
         self.state["plugins"] = rows
 
     def configure_row(self, row):
+        row["repo"] = ""
         path = Path(row["path"])
         listing = self.market.get(row["id"], {})
         market_version = row["marketVersion"] if listing.get("marketCommit") == row["marketCommit"] else ""
@@ -293,22 +372,36 @@ class Manager:
                     row["branch"] = ref.removeprefix("refs/heads/")
                 except SyncError:
                     remote = "origin"
-                row["repo"] = git(path, "remote", "get-url", remote)
+                url = git(path, "remote", "get-url", remote)
+                validate_repo(url)
+                row["repo"] = url
                 row["dirty"] = bool(git(path, "status", "--porcelain", "--untracked-files=no"))
-            except SyncError:
+            except SyncError as exc:
                 row["repo"] = ""
                 row["dirty"] = False
+                if str(exc) == REPO_AUTH_ERROR:
+                    row.update(status="error", canUpdate=False, error=REPO_AUTH_ERROR)
+                    return False
         else:
-            row["repo"] = listing.get("repo", "")
+            url = listing.get("repo", "")
+            try:
+                if listing.get("repoAuthBlocked"):
+                    raise SyncError(REPO_AUTH_ERROR)
+                if url:
+                    validate_repo(url)
+            except SyncError as exc:
+                row.update(status="error", canUpdate=False, error=str(exc))
+                return False
+            row["repo"] = url
             row["dirty"] = False
         if not row["repo"]:
             row.update(status="local", canUpdate=False)
             return False
-        if row["repo"].startswith("-") or "\n" in row["repo"]:
-            raise SyncError("无效的 Git 仓库地址")
+        validate_repo(row["repo"])
         return True
 
     def fetch(self, row):
+        validate_repo(row["repo"])
         repo = self.cache_dir / "repos" / (row["id"] + ".git")
         repo.parent.mkdir(parents=True, exist_ok=True)
         locks = list(repo.rglob("*.lock"))

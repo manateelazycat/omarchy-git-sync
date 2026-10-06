@@ -15,7 +15,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from backend import Manager, SyncError, git as backend_git, market_entries, run as backend_run
+from backend import Manager, SyncError, git as backend_git, market_entries, run as backend_run, validate_repo, REPO_AUTH_ERROR
 
 
 class UpdatesTest(unittest.TestCase):
@@ -83,6 +83,86 @@ class UpdatesTest(unittest.TestCase):
         return {path.relative_to(directory).as_posix():
                 "link:" + str(path.readlink()) if path.is_symlink() else hashlib.sha256(path.read_bytes()).hexdigest()
                 for path in directory.rglob("*") if path.is_symlink() or path.is_file()}
+
+    def test_credential_origin_never_reaches_command_arguments_or_state(self):
+        repo, installed, old = self.plugin()
+        url = "https://FAKE_ACCESS_TOKEN@example.invalid/plugin.git"
+        self.git(installed, "remote", "set-url", "origin", url)
+        commands = []
+        def record(args, **kwargs):
+            commands.append(args)
+            return backend_run(args, **kwargs)
+        manager = Manager()
+        with patch("backend.run", side_effect=record):
+            manager.scan()
+            manager.check()
+            manager.update(["test.clock"])
+        row = self.row(manager)
+        self.assertEqual(row["error"], REPO_AUTH_ERROR)
+        self.assertFalse(row["canUpdate"])
+        self.assertEqual(row["repo"], "")
+        self.assertNotIn("FAKE_ACCESS_TOKEN", manager.state_path.read_text())
+        self.assertFalse(any("FAKE_ACCESS_TOKEN" in str(args) for args in commands))
+        self.assertEqual(self.git(installed, "remote", "get-url", "origin"), url)
+        self.assertFalse((manager.cache_dir / "repos" / "test.clock.git").exists())
+
+    def test_sensitive_market_url_is_blocked_and_not_cached(self):
+        self.plugin(snapshot=True)
+        self.sources[0]["repo"] = "https://user:FAKE_ACCESS_TOKEN@example.invalid/plugin.git"
+        self.market_path.write_text(json.dumps({"sources": self.sources}))
+        manager = Manager()
+        manager.check()
+        self.assertEqual(self.row(manager)["error"], REPO_AUTH_ERROR)
+        self.assertNotIn("FAKE_ACCESS_TOKEN", manager.state_path.read_text())
+        self.assertNotIn("FAKE_ACCESS_TOKEN", (manager.cache_dir / "market.json").read_text())
+        manager.check()
+        self.assertEqual(self.row(manager)["error"], REPO_AUTH_ERROR)
+
+    def test_legacy_sensitive_cache_and_state_are_removed_under_lock(self):
+        self.plugin()
+        manager = Manager()
+        manager.check()
+        cache = manager.cache_dir / "repos" / "test.clock.git"
+        url = "https://FAKE_ACCESS_TOKEN@example.invalid/plugin.git"
+        self.git(cache, "remote", "set-url", "origin", url)
+        data = json.loads(manager.state_path.read_text())
+        data["plugins"][0].update(repo=url, error="failure " + url)
+        manager.state_path.write_text(json.dumps(data))
+        (manager.cache_dir / "market.json").write_text(json.dumps({"sources": [{"repo": url}]}))
+        recovered = Manager()
+        with recovered.lock():
+            self.assertFalse(cache.exists())
+            self.assertFalse((manager.cache_dir / "market.json").exists())
+            self.assertNotIn("FAKE_ACCESS_TOKEN", manager.state_path.read_text())
+        recovered.check()
+        self.assertEqual(self.row(recovered)["status"], "current")
+
+    def test_git_url_rewrite_is_checked_before_transport(self):
+        repo = self.root / "bare.git"
+        self.git(self.root, "init", "--bare", str(repo))
+        self.git(repo, "remote", "add", "origin", "https://example.invalid/plugin.git")
+        self.git(repo, "config", "url.https://FAKE_ACCESS_TOKEN@example.invalid/.insteadOf", "https://example.invalid/")
+        commands = []
+        def record(args, **kwargs):
+            commands.append(args)
+            return backend_run(args, **kwargs)
+        with patch("backend.run", side_effect=record), self.assertRaisesRegex(SyncError, REPO_AUTH_ERROR):
+            backend_git(repo, "fetch", "origin", bare=True)
+        with patch("backend.run", side_effect=record), self.assertRaisesRegex(SyncError, REPO_AUTH_ERROR):
+            backend_git(repo, "--work-tree", str(repo), "fetch", "origin", bare=True)
+        self.assertFalse(any("fetch" in args for args in commands))
+        self.assertFalse(any("FAKE_ACCESS_TOKEN" in str(args) for args in commands))
+
+    def test_repo_auth_validation_keeps_ssh_and_credential_helper_urls(self):
+        for url in ("https://example.invalid/repo.git", "git@example.invalid:repo.git",
+                    "ssh://git@example.invalid/repo.git", "file:///tmp/repo.git", "/tmp/repo.git"):
+            self.assertEqual(validate_repo(url), url)
+        for url in ("https://token@example.invalid/repo.git", "https://user:token@example.invalid/repo.git",
+                    "ssh://git:token@example.invalid/repo.git", "https://example.invalid/repo.git?token=secret"):
+            with self.assertRaisesRegex(SyncError, REPO_AUTH_ERROR):
+                validate_repo(url)
+            with self.assertRaisesRegex(SyncError, REPO_AUTH_ERROR):
+                backend_git(self.root, "remote", "add", "origin", url)
 
     def test_same_version_new_commit_is_update_and_market_comparison_is_separate(self):
         repo, installed, old = self.plugin()
