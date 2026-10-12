@@ -26,6 +26,7 @@ trap 'rm -rf -- "$stage_dir"' EXIT
 for file in "$source_dir"/*.qml "$source_dir/manifest.json" "$source_dir/backend.py" "$source_dir/reload_guard.py" "$source_dir/hyprland.lua" "$source_dir"/README*.md "$source_dir/LICENSE"; do
   cp -- "$file" "$stage_dir/"
 done
+cp -R -- "$source_dir/CompatUi" "$stage_dir/CompatUi"
 omarchy plugin validate "$stage_dir"
 if [[ -e $target_dir ]]; then
   mv -- "$target_dir" "$stage_dir.old"

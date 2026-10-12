@@ -1,5 +1,6 @@
+import "CompatUi" as ThemeUi
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import qs.Ui as ShellUi
 
@@ -34,7 +35,7 @@ ShellUi.BarWidget {
         onLoaded: { root.injectPanel(); Qt.callLater(root.injectPanel) }
     }
 
-    BarIconButton {
+    ThemeUi.BarIconButton {
         id: button
         anchors.fill: parent
         bar: root.bar

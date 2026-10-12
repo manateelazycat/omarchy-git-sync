@@ -1,6 +1,5 @@
 import QtQuick
-import qs.Commons
-
+import qs.Commons as Commons
 Rectangle {
     id: root
     required property var plugin
@@ -12,7 +11,7 @@ Rectangle {
     signal updateRequested(string pluginId)
     signal detailsRequested(string pluginId)
 
-    readonly property color foreground: Color.popups.text
+    readonly property color foreground: Commons.Color.popups.text
     readonly property bool working: plugin.status === "checking" || plugin.status === "updating" || plugin.status === "preparing"
     readonly property bool retryable: plugin.status === "error" && plugin.repo !== ""
     readonly property string statusLabel: {
@@ -32,15 +31,15 @@ Rectangle {
         default: return "待检查"
         }
     }
-    readonly property color statusColor: plugin.status === "error" ? Color.urgent
-        : plugin.canUpdate || working || root.successFlash ? Color.accent
-        : Util.alpha(foreground, 0.55)
+    readonly property color statusColor: plugin.status === "error" ? Commons.Color.urgent
+        : plugin.canUpdate || working || root.successFlash ? Commons.Color.accent
+        : Commons.Util.alpha(foreground, 0.55)
 
-    color: Util.alpha(foreground, 0.025)
-    radius: Math.max(Style.cornerRadius, Style.space(8))
+    color: Commons.Util.alpha(foreground, 0.025)
+    radius: Math.max(Commons.Style.cornerRadius, Commons.Style.space(8))
     border.width: 1
-    border.color: selected ? Util.alpha(Color.accent, 0.7)
-        : root.successFlash ? Util.alpha(Color.accent, 0.35) : Util.alpha(foreground, 0.1)
+    border.color: selected ? Commons.Util.alpha(Commons.Color.accent, 0.7)
+        : root.successFlash ? Commons.Util.alpha(Commons.Color.accent, 0.35) : Commons.Util.alpha(foreground, 0.1)
     clip: true
     Behavior on border.color { ColorAnimation { duration: 220 } }
 
@@ -52,27 +51,27 @@ Rectangle {
     Rectangle {
         anchors.fill: parent
         radius: parent.radius
-        color: Color.accent
+        color: Commons.Color.accent
         opacity: root.successFlash && root.animationsActive ? 0.08 : 0
         Behavior on opacity { NumberAnimation { duration: 260 } }
     }
 
     Column {
         anchors.fill: parent
-        anchors.margins: Style.space(16)
-        spacing: Style.space(8)
+        anchors.margins: Commons.Style.space(16)
+        spacing: Commons.Style.space(8)
 
         Item {
             width: parent.width
-            height: Style.space(24)
+            height: Commons.Style.space(24)
             Text {
-                width: parent.width - status.implicitWidth - Style.space(12)
+                width: parent.width - status.implicitWidth - Commons.Style.space(12)
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.plugin.name
                 textFormat: Text.PlainText
                 color: root.foreground
-                font.family: Style.font.family
-                font.pixelSize: Style.font.body
+                font.family: Commons.Style.font.family
+                font.pixelSize: Commons.Style.font.body
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
             }
@@ -83,8 +82,8 @@ Rectangle {
                 text: root.statusLabel
                 textFormat: Text.PlainText
                 color: root.statusColor
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
+                font.family: Commons.Style.font.family
+                font.pixelSize: Commons.Style.font.caption
                 Behavior on color { ColorAnimation { duration: 180 } }
             }
             MouseArea {
@@ -96,12 +95,12 @@ Rectangle {
 
         Text {
             width: parent.width
-            height: Style.space(35)
+            height: Commons.Style.space(35)
             text: root.plugin.description || "暂无简介"
             textFormat: Text.PlainText
-            color: Util.alpha(root.foreground, 0.65)
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
+            color: Commons.Util.alpha(root.foreground, 0.65)
+            font.family: Commons.Style.font.family
+            font.pixelSize: Commons.Style.font.caption
             wrapMode: Text.WordWrap
             maximumLineCount: 2
             elide: Text.ElideRight
@@ -109,18 +108,18 @@ Rectangle {
 
         Text {
             width: parent.width
-            height: Style.space(20)
+            height: Commons.Style.space(20)
             text: root.plugin.commitMessage || (root.working ? "正在读取 Git 上游…" : root.plugin.repo ? "尚未读取最新提交" : "没有 Git 上游")
             textFormat: Text.PlainText
             color: root.foreground
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
+            font.family: Commons.Style.font.family
+            font.pixelSize: Commons.Style.font.caption
             elide: Text.ElideRight
         }
 
         Column {
             width: parent.width
-            spacing: Style.space(3)
+            spacing: Commons.Style.space(3)
             Repeater {
                 model: [
                     "上游版本：" + (root.plugin.latestVersion || (root.plugin.repo ? "未知" : "无上游")),
@@ -132,9 +131,9 @@ Rectangle {
                     width: parent.width
                     text: modelData
                     textFormat: Text.PlainText
-                    color: Util.alpha(root.foreground, 0.4)
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.caption
+                    color: Commons.Util.alpha(root.foreground, 0.4)
+                    font.family: Commons.Style.font.family
+                    font.pixelSize: Commons.Style.font.caption
                     maximumLineCount: 1
                     elide: Text.ElideRight
                 }
@@ -143,21 +142,21 @@ Rectangle {
 
         Item {
             width: parent.width
-            height: Math.max(Style.space(34), footerInfo.implicitHeight, updateButton.implicitHeight)
+            height: Math.max(Commons.Style.space(34), footerInfo.implicitHeight, updateButton.implicitHeight)
             Column {
                 id: footerInfo
-                width: parent.width - updateButton.width - Style.space(10)
+                width: parent.width - updateButton.width - Commons.Style.space(10)
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: Style.space(3)
+                spacing: Commons.Style.space(3)
                 Text {
                     width: parent.width
                     text: root.plugin.marketState === "same" ? "市场一致"
                         : root.plugin.marketState === "different" ? "与市场不同"
                         : root.plugin.marketState === "version-same" ? "市场版本号一致"
                         : root.plugin.marketState === "unlisted" ? "市场未收录" : "市场版本待确认"
-                    color: root.plugin.marketState === "different" ? Util.alpha(Color.accent, 0.8) : Util.alpha(root.foreground, 0.55)
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.caption
+                    color: root.plugin.marketState === "different" ? Commons.Util.alpha(Commons.Color.accent, 0.8) : Commons.Util.alpha(root.foreground, 0.55)
+                    font.family: Commons.Style.font.family
+                    font.pixelSize: Commons.Style.font.caption
                     elide: Text.ElideRight
                 }
                 Text {
@@ -165,15 +164,15 @@ Rectangle {
                     visible: text !== ""
                     text: (root.plugin.error || "").replace(/\s+/g, " ").trim()
                     textFormat: Text.PlainText
-                    color: Color.urgent
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.caption
+                    color: Commons.Color.urgent
+                    font.family: Commons.Style.font.family
+                    font.pixelSize: Commons.Style.font.caption
                     maximumLineCount: 1
                     elide: Text.ElideRight
                 }
             }
             MouseArea {
-                width: parent.width - updateButton.width - Style.space(10)
+                width: parent.width - updateButton.width - Commons.Style.space(10)
                 height: parent.height
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.detailsRequested(root.plugin.id)
@@ -202,15 +201,15 @@ Rectangle {
     Rectangle {
         anchors.bottom: parent.bottom
         width: parent.width
-        height: Style.space(2)
-        color: Util.alpha(Color.accent, 0.1)
+        height: Commons.Style.space(2)
+        color: Commons.Util.alpha(Commons.Color.accent, 0.1)
         visible: root.working
         clip: true
         Rectangle {
             id: pulse
             width: parent.width * 0.32
             height: parent.height
-            color: Color.accent
+            color: Commons.Color.accent
             NumberAnimation on x {
                 from: -pulse.width; to: root.width
                 duration: 1100; loops: Animation.Infinite

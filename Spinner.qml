@@ -1,11 +1,10 @@
 import QtQuick
-import qs.Commons
-
+import qs.Commons as Commons
 Item {
     id: root
-    property color color: Color.accent
+    property color color: Commons.Color.accent
     property bool running: true
-    implicitWidth: Style.space(16)
+    implicitWidth: Commons.Style.space(16)
     implicitHeight: implicitWidth
     onColorChanged: ring.requestPaint()
 

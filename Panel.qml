@@ -1,11 +1,12 @@
+import "CompatUi" as ThemeUi
 import QtQuick
 import QtQuick.Controls
 import Quickshell
-import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import qs.Ui as ShellUi
 
-ShellUi.Panel {
+ThemeUi.Panel {
     id: root
     moduleName: "andy.git-sync"
     ipcTarget: "andy.git-sync"
@@ -15,7 +16,7 @@ ShellUi.Panel {
     property string detailId: ""
     readonly property bool showingDetails: root.detailId !== ""
     property alias sync: sync
-    readonly property color foreground: Color.popups.text
+    readonly property color foreground: Commons.Color.popups.text
     readonly property var detailPlugin: {
         var plugins = sync.snapshot.plugins || []
         for (var i = 0; i < plugins.length; i++) if (plugins[i].id === root.detailId) return plugins[i]
@@ -61,9 +62,9 @@ ShellUi.Panel {
         anchorItem: root.anchorItem
         open: root.opened
         focusTarget: keyboard
-        padding: Style.space(20)
-        contentWidth: fittedContentWidth(Style.space(1000))
-        contentHeight: fittedContentHeight(Style.space(660))
+        padding: Commons.Style.space(20)
+        contentWidth: fittedContentWidth(Commons.Style.space(1000))
+        contentHeight: fittedContentHeight(Commons.Style.space(660))
         onCloseRequested: root.close()
         onPlacementFinished: if (root.opened) windowState.remember(true, popup.actualScreenName)
         onActualScreenNameChanged: if (root.opened && popup.placed && popup.actualScreenName) windowState.remember(true, popup.actualScreenName)
@@ -91,18 +92,18 @@ ShellUi.Panel {
                 id: header
                 objectName: "gitSyncHeader"
                 width: parent.width
-                readonly property bool compact: width < Style.space(590)
-                height: Style.space(root.showingDetails ? 44 : compact ? 100 : 62)
+                readonly property bool compact: width < Commons.Style.space(590)
+                height: Commons.Style.space(root.showingDetails ? 44 : compact ? 100 : 62)
                 Column {
                     objectName: "gitSyncHomeInfo"
                     visible: !root.showingDetails
-                    width: header.compact ? parent.width : parent.width - actions.width - Style.space(12)
-                    spacing: Style.space(5)
+                    width: header.compact ? parent.width : parent.width - actions.width - Commons.Style.space(12)
+                    spacing: Commons.Style.space(5)
                     Text {
                         text: "Git Sync"
                         color: root.foreground
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.heading
+                        font.family: Commons.Style.font.family
+                        font.pixelSize: Commons.Style.font.heading
                         font.weight: Font.DemiBold
                     }
                     Text {
@@ -111,9 +112,9 @@ ShellUi.Panel {
                             + "  " + sync.snapshot.progress.done + " / " + sync.snapshot.progress.total
                             : sync.updates ? sync.updates + " 个插件可更新 · 共 " + sync.model.count + " 个"
                             : "共 " + sync.model.count + " 个插件"
-                        color: Util.alpha(root.foreground, 0.5)
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.caption
+                        color: Commons.Util.alpha(root.foreground, 0.5)
+                        font.family: Commons.Style.font.family
+                        font.pixelSize: Commons.Style.font.caption
                         elide: Text.ElideRight
                     }
                 }
@@ -123,8 +124,8 @@ ShellUi.Panel {
                     visible: !root.showingDetails
                     anchors.right: parent.right
                     anchors.top: parent.top
-                    anchors.topMargin: header.compact ? Style.space(48) : 0
-                    spacing: Style.space(8)
+                    anchors.topMargin: header.compact ? Commons.Style.space(48) : 0
+                    spacing: Commons.Style.space(8)
                     ActionButton {
                         id: checkButton
                         text: "检查更新"
@@ -161,14 +162,14 @@ ShellUi.Panel {
                     objectName: "gitSyncDetailTitle"
                     visible: root.showingDetails
                     anchors.centerIn: parent
-                    width: Math.max(0, parent.width - 2 * (Math.max(backButton.width, detailAction.width) + Style.space(16)))
+                    width: Math.max(0, parent.width - 2 * (Math.max(backButton.width, detailAction.width) + Commons.Style.space(16)))
                     text: root.detailPlugin ? root.detailPlugin.name : "插件详情"
                     textFormat: Text.PlainText
                     horizontalAlignment: Text.AlignHCenter
                     elide: Text.ElideRight
                     color: root.foreground
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.heading
+                    font.family: Commons.Style.font.family
+                    font.pixelSize: Commons.Style.font.heading
                     font.weight: Font.DemiBold
                 }
                 ActionButton {
@@ -197,13 +198,13 @@ ShellUi.Panel {
                 anchors.top: header.bottom
                 width: parent.width
                 visible: !root.showingDetails
-                height: visible ? Style.space(2) : 0
-                color: Util.alpha(root.foreground, 0.07)
+                height: visible ? Commons.Style.space(2) : 0
+                color: Commons.Util.alpha(root.foreground, 0.07)
                 Rectangle {
                     height: parent.height
                     width: sync.snapshot.busy && sync.snapshot.progress.total > 0
                         ? parent.width * sync.snapshot.progress.done / sync.snapshot.progress.total : 0
-                    color: Color.accent
+                    color: Commons.Color.accent
                     Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
                 }
             }
@@ -215,14 +216,14 @@ ShellUi.Panel {
                 anchors.bottom: footer.top
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.topMargin: Style.space(16)
-                anchors.bottomMargin: Style.space(12)
+                anchors.topMargin: Commons.Style.space(16)
+                anchors.bottomMargin: Commons.Style.space(12)
                 visible: !root.showingDetails
                 clip: true
                 model: sync.model
-                readonly property int columns: Math.max(1, Math.min(3, Math.floor(width / Style.space(295))))
+                readonly property int columns: Math.max(1, Math.min(3, Math.floor(width / Commons.Style.space(295))))
                 cellWidth: width / columns
-                cellHeight: Style.space(244)
+                cellHeight: Commons.Style.space(244)
                 boundsBehavior: Flickable.StopAtBounds
                 keyNavigationEnabled: true
                 focus: visible
@@ -241,8 +242,8 @@ ShellUi.Panel {
                     required property int index
                     required property var entry
                     plugin: entry
-                    width: grid.cellWidth - Style.space(10)
-                    height: grid.cellHeight - Style.space(10)
+                    width: grid.cellWidth - Commons.Style.space(10)
+                    height: grid.cellHeight - Commons.Style.space(10)
                     globalBusy: sync.busy
                     animationsActive: root.opened
                     selected: GridView.isCurrentItem && grid.activeFocus
@@ -258,9 +259,9 @@ ShellUi.Panel {
                     anchors.centerIn: parent
                     visible: sync.model.count === 0
                     text: sync.busy ? "正在读取插件…" : "还没有安装用户插件"
-                    color: Util.alpha(root.foreground, 0.5)
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.body
+                    color: Commons.Util.alpha(root.foreground, 0.5)
+                    font.family: Commons.Style.font.family
+                    font.pixelSize: Commons.Style.font.body
                 }
             }
 
@@ -271,11 +272,11 @@ ShellUi.Panel {
                 anchors.bottom: parent.bottom
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.topMargin: Style.space(12)
+                anchors.topMargin: Commons.Style.space(12)
                 visible: root.showingDetails
                 clip: true
                 contentWidth: width
-                contentHeight: Math.max(height, detailContent.implicitHeight + Style.space(24) * 2)
+                contentHeight: Math.max(height, detailContent.implicitHeight + Commons.Style.space(24) * 2)
                 boundsBehavior: Flickable.StopAtBounds
                 ScrollBar.vertical: ScrollBar {
                     objectName: "gitSyncDetailScrollBar"
@@ -292,10 +293,10 @@ ShellUi.Panel {
                 Column {
                     id: detailContent
                     objectName: "gitSyncDetailContent"
-                    width: Math.min(detailViewport.width - Style.space(32), Style.space(820))
+                    width: Math.min(detailViewport.width - Commons.Style.space(32), Commons.Style.space(820))
                     x: (detailViewport.width - width) / 2
-                    y: Math.max(Style.space(24), (detailViewport.height - implicitHeight) / 2)
-                    spacing: Style.space(16)
+                    y: Math.max(Commons.Style.space(24), (detailViewport.height - implicitHeight) / 2)
+                    spacing: Commons.Style.space(16)
                     Repeater {
                         model: root.detailPlugin ? [
                             ["简介", root.detailPlugin.description || "暂无简介"],
@@ -317,27 +318,27 @@ ShellUi.Panel {
                         Row {
                             required property var modelData
                             width: detailContent.width
-                            spacing: Style.space(28)
+                            spacing: Commons.Style.space(28)
                             Text {
                                 id: fieldLabel
-                                width: Math.min(Style.space(120), parent.width * 0.28)
+                                width: Math.min(Commons.Style.space(120), parent.width * 0.28)
                                 text: modelData[0]
                                 horizontalAlignment: Text.AlignRight
-                                color: Util.alpha(root.foreground, 0.45)
-                                font.family: Style.font.family
-                                font.pixelSize: Style.font.body
+                                color: Commons.Util.alpha(root.foreground, 0.45)
+                                font.family: Commons.Style.font.family
+                                font.pixelSize: Commons.Style.font.body
                             }
                             Column {
                                 width: parent.width - fieldLabel.width - parent.spacing
-                                spacing: Style.space(6)
+                                spacing: Commons.Style.space(6)
                                 Text {
                                     width: parent.width
                                     text: modelData[1]
                                     textFormat: Text.PlainText
                                     wrapMode: Text.Wrap
                                     color: root.foreground
-                                    font.family: Style.font.family
-                                    font.pixelSize: Style.font.body
+                                    font.family: Commons.Style.font.family
+                                    font.pixelSize: Commons.Style.font.body
                                 }
                                 ActionButton {
                                     text: "打开仓库"
@@ -356,13 +357,13 @@ ShellUi.Panel {
                 anchors.bottom: parent.bottom
                 width: parent.width
                 visible: !root.showingDetails
-                height: visible ? Style.space(20) : 0
+                height: visible ? Commons.Style.space(20) : 0
                 text: sync.launchError || (sync.busy ? "" :
                     sync.snapshot.message || (sync.snapshot.marketCached ? "市场暂不可用，正在使用缓存" : sync.snapshot.marketError ? "市场信息暂不可用 · Git 更新仍可使用" : "同步 Git 上游 · 自动备份本地文件 · 官方市场作对照"))
                 textFormat: Text.PlainText
-                color: sync.launchError ? Color.urgent : Util.alpha(root.foreground, 0.4)
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
+                color: sync.launchError ? Commons.Color.urgent : Commons.Util.alpha(root.foreground, 0.4)
+                font.family: Commons.Style.font.family
+                font.pixelSize: Commons.Style.font.caption
                 elide: Text.ElideRight
             }
         }

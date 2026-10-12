@@ -1,9 +1,10 @@
+import "CompatUi" as ThemeUi
 import QtQuick
 import QtQuick.Window
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
-import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 // Fixed-size toplevels float and open in the monitor center in Omarchy. The
@@ -14,11 +15,11 @@ FloatingWindow {
     property Item anchorItem: null
     property bool open: false
     property Item focusTarget: null
-    property int margin: Style.gapsOut
-    property int padding: Style.spacing.popupPadding
-    property int contentWidth: Style.space(1000)
-    property int contentHeight: Style.space(660)
-    property var borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
+    property int margin: Commons.Style.gapsOut
+    property int padding: Commons.Style.spacing.popupPadding
+    property int contentWidth: Commons.Style.space(1000)
+    property int contentHeight: Commons.Style.space(660)
+    property var borderSpec: ThemeUi.ThemeBorder.surfaceSpec("popups", "border", Commons.Color.popups.border, Math.max(1, Commons.Style.space(2)))
     property bool placed: false
     property bool placementRequested: false
     property int placementAttempts: 0
@@ -29,7 +30,7 @@ FloatingWindow {
     readonly property string actualScreenName: nativeWindow && nativeWindow.monitor ? nativeWindow.monitor.name : ""
     readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
     readonly property real contentRightInset: card.contentRightInset
-    readonly property real verticalContentInset: padding * 2 + Border.top(borderSpec) + Border.bottom(borderSpec)
+    readonly property real verticalContentInset: padding * 2 + ThemeUi.ThemeBorder.top(borderSpec) + ThemeUi.ThemeBorder.bottom(borderSpec)
     default property alias contentItem: contentHolder.children
     signal closeRequested()
     signal placementFinished()
@@ -140,10 +141,10 @@ FloatingWindow {
         id: card
         objectName: "gitSyncCard"
         anchors.fill: parent
-        color: Color.popups.background
+        color: Commons.Color.popups.background
         borderSpec: root.borderSpec
         padding: root.padding
-        radius: Style.cornerRadius
+        radius: Commons.Style.cornerRadius
 
         Item {
             id: contentHolder
